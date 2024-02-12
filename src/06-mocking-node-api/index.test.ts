@@ -1,52 +1,105 @@
-// Uncomment the code below and write your tests
-// import { readFileAsynchronously, doStuffByTimeout, doStuffByInterval } from '.';
+import path from 'path';
+import fs from 'fs';
+import fsPromises from 'fs/promises';
+import { readFileAsynchronously, doStuffByTimeout, doStuffByInterval } from '.';
 
-describe('doStuffByTimeout', () => {
+const setupFakeTimers = () => {
   beforeAll(() => {
     jest.useFakeTimers();
   });
 
   afterAll(() => {
     jest.useRealTimers();
+    jest.clearAllMocks();
+  });
+};
+
+describe('doStuffByTimeout', () => {
+  let mockCallback: jest.Mock;
+  let mockTimeout: number;
+
+  setupFakeTimers();
+
+  beforeEach(() => {
+    mockCallback = jest.fn();
+    mockTimeout = 500;
   });
 
-  test('should set timeout with provided callback and timeout', () => {
-    // Write your test here
+  test('sets timeout with provided callback and timeout', () => {
+    jest.spyOn(global, 'setTimeout');
+    doStuffByTimeout(mockCallback, mockTimeout);
+    expect(setTimeout).toHaveBeenCalledTimes(1);
+    expect(setTimeout).toHaveBeenCalledWith(mockCallback, mockTimeout);
   });
 
-  test('should call callback only after timeout', () => {
-    // Write your test here
+  test('calls callback only after timeout', () => {
+    doStuffByTimeout(mockCallback, mockTimeout);
+    expect(mockCallback).not.toHaveBeenCalled();
+    jest.runAllTimers();
+    expect(mockCallback).toHaveBeenCalled();
   });
 });
 
 describe('doStuffByInterval', () => {
-  beforeAll(() => {
-    jest.useFakeTimers();
+  let mockInterval: number;
+
+  setupFakeTimers();
+
+  beforeEach(() => {
+    mockInterval = 500;
   });
 
-  afterAll(() => {
-    jest.useRealTimers();
+  test('sets interval with provided callback and timeout', () => {
+    jest.spyOn(global, 'setInterval');
+    const mockCallback = jest.fn();
+
+    doStuffByInterval(mockCallback, mockInterval);
+
+    expect(setInterval).toHaveBeenCalledTimes(1);
+    expect(setInterval).toHaveBeenCalledWith(mockCallback, mockInterval);
   });
 
-  test('should set interval with provided callback and timeout', () => {
-    // Write your test here
-  });
-
-  test('should call callback multiple times after multiple intervals', () => {
-    // Write your test here
+  test('calls callback multiple times after multiple intervals', () => {
+    const mockCallback = jest.fn();
+    doStuffByInterval(mockCallback, mockInterval);
+    expect(mockCallback).not.toHaveBeenCalled();
+    jest.advanceTimersByTime(mockInterval);
+    expect(mockCallback).toHaveBeenCalledTimes(1);
+    jest.advanceTimersByTime(mockInterval);
+    expect(mockCallback).toHaveBeenCalledTimes(2);
   });
 });
 
 describe('readFileAsynchronously', () => {
-  test('should call join with pathToFile', async () => {
-    // Write your test here
+  const mockPathToFile = 'test.txt';
+  const mockFileContent = 'File content';
+
+  afterEach(() => {
+    jest.clearAllMocks();
   });
 
-  test('should return null if file does not exist', async () => {
-    // Write your test here
+  test('calls join with pathToFile', async () => {
+    const joinMock = jest.spyOn(path, 'join');
+    jest.spyOn(fs, 'existsSync').mockReturnValue(false);
+
+    await readFileAsynchronously(mockPathToFile);
+    expect(joinMock).toHaveBeenCalledWith(expect.any(String), mockPathToFile);
   });
 
-  test('should return file content if file exists', async () => {
-    // Write your test here
+  test('returns null if file does not exist', async () => {
+    jest.spyOn(path, 'join').mockReturnValue(mockPathToFile);
+    jest.spyOn(fs, 'existsSync').mockReturnValue(false);
+
+    const result = await readFileAsynchronously(mockPathToFile);
+    expect(result).toBeNull();
+  });
+
+  test('returns file content if file exists', async () => {
+    jest.spyOn(path, 'join').mockReturnValue(mockPathToFile);
+    jest.spyOn(fs, 'existsSync').mockReturnValue(true);
+    jest.spyOn(fsPromises, 'readFile').mockResolvedValue(mockFileContent);
+
+    const result = await readFileAsynchronously(mockPathToFile);
+    expect(result).toBe(mockFileContent);
   });
 });
